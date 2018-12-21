@@ -1,0 +1,220 @@
+=======ODOO12-CentOS7=======
+
+sudo yum install epel-release centos-release-scl
+
+sudo yum install rh-python36 git gcc wget nodejs-less libxslt-devel bzip2-devel openldap-devel libjpeg-devel freetype-devel postgresql-devel
+
+sudo useradd -m -U -r -d /opt/odoo12 -s /bin/bash odoo12
+
+sudo yum install https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
+
+sudo yum install postgresql10-server
+
+/usr/pgsql-10/bin/postgresql-10-setup initdb
+
+sudo systemctl enable postgresql-10
+
+sudo systemctl start postgresql-10
+
+sudo su - postgres -c "createuser -s odoo12"
+
+=====Install Wkhtmltopdf======
+
+wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.1/wkhtmltox-0.12.1_linux-centos7-amd64.rpm
+
+sudo yum localinstall wkhtmltox-0.12.1_linux-centos7-amd64.rpm
+
+=====ODOO 12 INSTALL========
+
+sudo su - odoo12
+
+git clone https://www.github.com/odoo/odoo --depth 1 --branch 12.0 /opt/odoo12/odoo
+
+scl enable rh-python36 bash
+
+cd /opt/odoo12
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+pip3 install -r odoo/requirements.txt
+
+
+deactivate
+
+mkdir /opt/odoo12/odoo-custom-addons
+
+#####This will exit the env shell#####
+exit
+
+
+sudo nano /etc/odoo12.conf
+
+[options]
+; This is the password that allows database operations:
+admin_passwd = superadmin_passwd
+db_host = False
+db_port = False
+db_user = odoo12
+db_password = False
+addons_path = /opt/odoo12/odoo/addons, /opt/odoo12/odoo-custom-addons
+
+
+sudo nano /etc/systemd/system/odoo12.service
+
+#####PAST the Followig######
+
+[Unit]
+Description=Odoo12
+Requires=postgresql-10.service
+After=network.target postgresql-10.service
+
+[Service]
+Type=simple
+SyslogIdentifier=odoo12
+PermissionsStartOnly=true
+User=odoo12
+Group=odoo12
+ExecStart=/usr/bin/scl enable rh-python36 -- /opt/odoo12/venv/bin/python3 /opt/odoo12/odoo/odoo-bin -c /etc/odoo12.conf
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target
+
+
+sudo systemctl daemon-reload
+
+sudo systemctl enable odoo12
+
+sudo systemctl start odoo12
+
+sudo systemctl status odoo12
+
+sudo journalctl -u odoo12
+
+####Test the Installation####
+Open your browser and type: http://<your_domain_or_IP_address>:8069
+
+
+
+REF: https://linuxize.com/post/install-odoo-12-on-centos-7/
+
+
+=======ODOO11-INSTALL=================================
+sudo su - odoo
+
+whoami
+
+git clone https://www.github.com/odoo/odoo --depth 1 --branch 11.0 /opt/odoo/odoo11
+
+scl enable rh-python35 bash
+
+cd /opt/odoo
+
+python3 -m venv odoo11-venv
+
+source odoo11-venv/bin/activate
+
+pip3 install -r odoo11/requirements.txt
+
+deactivate
+
+exit
+
+sudo mkdir /opt/odoo/odoo11-custom-addons
+sudo chown odoo: /opt/odoo/odoo11-custom-addons
+
+#####Create file /etc/odoo11.conf and paste the following#######
+
+[options]
+; This is the password that allows database operations:
+admin_passwd = superadmin_passwd
+db_host = False
+db_port = False
+db_user = odoo
+db_password = False
+;addons_path = /opt/odoo/odoo11/addons
+; If you are using custom modules
+ addons_path = /opt/odoo/odoo11/addons,/opt/odoo/odoo11-custom-addons
+#####################################################
+
+####Create the systemd file /etc/systemd/system/odoo11.service######
+
+[Unit]
+Description=Odoo11
+Requires=postgresql.service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+SyslogIdentifier=odoo11
+PermissionsStartOnly=true
+User=odoo
+Group=odoo
+ExecStart=/usr/bin/scl enable rh-python35 -- /opt/odoo/odoo11-venv/bin/python3 /opt/odoo/odoo11/odoo-bin -c /etc/odoo11.conf
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target
+
+###########################################
+
+sudo systemctl daemon-reload
+
+sudo systemctl start odoo11
+
+sudo systemctl status odoo11
+
+sudo systemctl enable odoo11
+
+sudo journalctl -u odoo11
+
+Open your browser and type: http://<your_domain_or_IP_address>:8069
+
+
+
+
+======================================================
+======================================================
+
+Auto Backup for odoo server 
+======================================================
+######odoo.sh###########
+
+
+#!/bin/bash
+
+# vars
+BACKUP_DIR=~/odoo_backups
+ODOO_DATABASE=db1
+ADMIN_PASSWORD=superadmin_passwd
+
+# create a backup directory
+mkdir -p ${BACKUP_DIR}
+
+# create a backup
+curl -X POST \
+    -F "master_pwd=${ADMIN_PASSWORD}" \
+    -F "name=${ODOO_DATABASE}" \
+    -F "backup_format=zip" \
+    -o ${BACKUP_DIR}/${ODOO_DATABASE}.$(date +%F).zip \
+    http://localhost:8069/web/database/backup
+
+
+# delete old backups
+#find ${BACKUP_DIR} -type f -mtime +7 -name "${ODOO_DATABASE}.*.zip" -delete
+
+#############################################################################
+
+
+sudo chmod +x ~/backup_odoo.sh
+
+crontab -e
+
+01 30 * * * /home/<yourusername>/backup_odoo.sh
+
+
+
+
+#####REF: https://linuxize.com/post/how-to-setup-automatic-odoo-backup/
