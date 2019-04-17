@@ -1,0 +1,13 @@
+In case you face error in tail -f /var/log/messages about odoo postgresql connection fatal Error
+
+In file add below line where 192.168.116.100/24 is server ip with subnet
+
+ vim  /var/lib/pgsql/data/pg_hba.conf
+ 
+ host    all             all             192.168.116.100/24         ident
+ 
+ 
+ and in file below
+ vim  /var/lib/pgsql/data/postgresql.conf
+  
+  enable listen_addresses= '*'
